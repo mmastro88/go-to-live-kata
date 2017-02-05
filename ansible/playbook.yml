@@ -1,0 +1,31 @@
+---
+- hosts: lapw
+  gather_facts: yes
+
+  vars_files:
+    - settings.yml
+
+  roles:
+    - system
+    - apache
+    - php
+    - wordpress
+
+- hosts: mysql
+  gather_facts: yes
+
+  vars_files:
+    - settings.yml
+
+  roles:
+    - system
+    - mysql
+
+- hosts: haproxy
+  gather_facts: yes
+
+  vars_files:
+    - settings.yml
+
+  roles:
+    - haproxy

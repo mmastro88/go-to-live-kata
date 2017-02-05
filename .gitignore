@@ -1,0 +1,13 @@
+.htaccess
+.DS_Store
+.Trashes
+.project
+.buildpath
+*.log
+.vagrant/
+data/*
+vagrant_ansible_inventory_*
+helloworld.sqlite
+*.pyc
+.idea
+*~

@@ -1,0 +1,85 @@
+---
+- name: install mysql and dependencies
+  apt:
+    name: '{{ item }}'
+    update_cache: yes
+    cache_valid_time: 3600
+    state: present
+  with_items:
+  - mysql-server
+  - mysql-client
+  - python-mysqldb
+
+- name: ensure mysql is running and starts on boot
+  service: name=mysql state=started enabled=true
+
+# Need to do this for idempotency, see
+# http://ansible.cc/docs/modules.html#mysql-user
+- name: update mysql root password for all root accounts
+  mysql_user:
+    user: 'root'
+    password: '{{ mysql.rootpass }}'
+    host: '{{ item }}'
+  with_items:
+  - '{{ ansible_hostname }}'
+  - '127.0.0.1'
+  - '::1'
+  - 'localhost'
+
+- name: add remote access
+  mysql_user:
+    login_user: 'root'
+    login_password: '{{ mysql.rootpass }}'
+    user: '{{ wordpress.db_user }}'
+    password: '{{ wordpress.db_pass }}'
+    host: '{{ item }}'
+    priv: '{{ wordpress.db_name }}.*:ALL'
+  with_items:
+    "{{ lawp_ip }}"
+
+- name: setup mysql credentials for root user
+  template:
+    src: 'my.cnf.j2'
+    dest: '/root/.my.cnf'
+    owner: 'root'
+    mode: 0600
+
+- name: setup mysql conf 
+  template:
+    src: 'etc_my.cnf.j2'
+    dest: '/etc/mysql/my.cnf'
+    owner: 'root'
+    mode: 0644
+  notify: restart mysql
+
+- name: setup empty database for wordpress
+  mysql_db:
+    db: '{{ wordpress.db_name }}'
+    login_user: root
+    login_password: '{{ mysql.rootpass }}'
+    state: present
+  register: new_wp_db
+  tags: wordpress
+
+- name: setup wordpress database user
+  mysql_user:
+    name: '{{ wordpress.db_user }}'
+    password: '{{ wordpress.db_pass }}'
+    login_user: root
+    login_password: '{{ mysql.rootpass }}'
+    priv: '{{ wordpress.db_name }}.*:SELECT,INSERT,UPDATE,DELETE,CREATE'
+    host: '{{ wordpress.db_host }}'
+    state: present
+  tags: wordpress
+
+- name: grant access for root to wordpress database
+  mysql_user:
+    name: root
+    password: '{{ mysql.rootpass }}'
+    login_user: root
+    login_password: '{{ mysql.rootpass }}'
+    append_privs: yes
+    priv: '{{ wordpress.db_name }}.*:ALL'
+    state: present
+  when: new_wp_db.changed
+  tags: wordpress
