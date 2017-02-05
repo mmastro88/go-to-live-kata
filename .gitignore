@@ -11,3 +11,5 @@ helloworld.sqlite
 *.pyc
 .idea
 *~
+*.retry
+
